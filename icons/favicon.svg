@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <clipPath id="body"><rect x="178" y="196" width="156" height="246" rx="44"/></clipPath>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#2f6e5c"/>
+  <!-- tetina -->
+  <path d="M226 156 C226 130 230 112 238 100 C242 84 250 76 256 76 C262 76 270 84 274 100 C282 112 286 130 286 156 Z" fill="#fbeadf"/>
+  <!-- rosca -->
+  <rect x="196" y="148" width="120" height="44" rx="14" fill="#e0894f"/>
+  <!-- cuerpo -->
+  <rect x="178" y="196" width="156" height="246" rx="44" fill="#ffffff"/>
+  <!-- leche -->
+  <rect x="178" y="300" width="156" height="150" fill="#fbeadf" clip-path="url(#body)"/>
+  <!-- marcas -->
+  <g stroke="#2f6e5c" stroke-width="10" stroke-linecap="round" opacity=".55">
+    <line x1="200" y1="236" x2="236" y2="236"/>
+    <line x1="200" y1="270" x2="224" y2="270"/>
+    <line x1="200" y1="336" x2="236" y2="336"/>
+    <line x1="200" y1="370" x2="224" y2="370"/>
+  </g>
+</svg>
