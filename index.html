@@ -117,6 +117,40 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
 .hdr-r{display:flex;flex-direction:column;align-items:flex-end;gap:2px;min-width:0}
 .linkb{border:0;background:none;color:var(--muted);font-size:12px;text-decoration:underline;padding:0}
 #login .field input{font-family:var(--f-body);font-size:17px}
+/* Semana: colores de gráfico validados (contraste + daltonismo) para cada modo */
+:root{--c-materna:#d97a3c;--c-formula:#4a7fc1;--c-teta:#c25b86;--c-accent:#2f6e5c}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--c-materna:#d27a40;--c-formula:#5f95e0;--c-teta:#cf6895;--c-accent:#5aa58b}}
+:root[data-theme="dark"]{--c-materna:#d27a40;--c-formula:#5f95e0;--c-teta:#cf6895;--c-accent:#5aa58b}
+.wk-head{flex:1;text-align:center;display:flex;flex-direction:column;gap:2px}
+.seg4{grid-template-columns:repeat(4,1fr)}
+.seg4 button{font-size:13px;padding-inline:2px}
+.stat .cmp{font-size:12px;color:var(--muted);margin-top:2px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;color:var(--muted);align-items:center}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.chart{position:relative;user-select:none;-webkit-user-select:none;touch-action:pan-y}
+.chart svg{display:block;width:100%;overflow:visible}
+.chart .grid{stroke:var(--line);stroke-width:1}
+.chart .ax{fill:var(--muted);font-family:var(--f-mono);font-size:11px}
+.chart .xl{fill:var(--muted);font-size:11px;font-family:var(--f-body)}
+.chart .xl.today{fill:var(--fg);font-weight:700}
+.chart .col{transition:opacity .15s}
+.chart.sel .col{opacity:.35}
+.chart.sel .col.on{opacity:1}
+.chart .hit{fill:transparent;cursor:pointer}
+.tip{position:absolute;transform:translate(-50%,calc(-100% - 8px));background:var(--surface);color:var(--fg);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:12px;padding:10px 12px;font-size:13px;min-width:150px;pointer-events:auto;z-index:2}
+.tip b{display:block;font-family:var(--f-display);font-size:14px;margin-bottom:4px}
+.tip .r{display:flex;justify-content:space-between;gap:14px;align-items:center}
+.tip .r span:first-child{color:var(--muted)}
+.tip .r i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:6px}
+.tip .num{font-size:13px}
+.tip button{margin-top:8px;border:0;background:var(--accent-soft);color:var(--accent);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;width:100%}
+.tbl summary{font-size:13px;color:var(--muted);cursor:pointer}
+.tbl table{width:100%;border-collapse:collapse;font-size:13px;margin-top:8px}
+.tbl th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;text-align:right;padding:6px 4px}
+.tbl th:first-child,.tbl td:first-child{text-align:left}
+.tbl td{text-align:right;padding:6px 4px;border-top:1px solid var(--line);font-family:var(--f-mono);font-size:12px}
+.tbl td:first-child{font-family:var(--f-body)}
+.wl{font-size:12px;opacity:.85;margin-top:2px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 
@@ -153,6 +187,7 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
     <div>
       <div style="font-size:13px;opacity:.9;font-weight:600">Teta en curso · desde <span id="liveStart" class="num"></span></div>
       <div class="t" id="liveTimer">00:00</div>
+      <div class="wl" id="liveWl" hidden>☀ La pantalla queda encendida</div>
     </div>
     <button id="liveStop" type="button">Terminar</button>
   </div>
@@ -190,6 +225,30 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
       <div class="tlh" style="margin-top:4px"><span>0</span><span>6</span><span>12</span><span>18</span><span>24</span></div>
     </div>
     <div class="list" id="list"></div>
+  </section>
+
+  <section class="card" id="week">
+    <div class="daynav">
+      <button class="navb" id="wPrev" type="button" aria-label="Semana anterior">‹</button>
+      <div class="wk-head"><h2 id="wTitle" style="font-size:19px">Últimos 7 días</h2><div class="hint" id="wRange"></div></div>
+      <button class="navb" id="wNext" type="button" aria-label="Semana siguiente">›</button>
+    </div>
+    <div class="seg seg4" role="group" aria-label="Qué mostrar">
+      <button type="button" data-metric="ml">Mamadera</button>
+      <button type="button" data-metric="teta">Teta</button>
+      <button type="button" data-metric="count">Tomas</button>
+      <button type="button" data-metric="gap">Intervalo</button>
+    </div>
+    <div class="stats">
+      <div class="stat s-total"><div class="lbl" id="wS1l">Promedio por día</div><div class="v num" id="wS1">—</div><div class="cmp" id="wS1c"></div></div>
+      <div class="stat s-total"><div class="lbl" id="wS2l">Total semana</div><div class="v num" id="wS2">—</div></div>
+    </div>
+    <div>
+      <div class="hint" id="wCap" style="margin-bottom:8px"></div>
+      <div class="legend" id="wLegend" style="margin-bottom:8px"></div>
+      <div class="chart" id="wChart"><svg id="wSvg" role="img"></svg><div class="tip" id="wTip" hidden></div></div>
+    </div>
+    <details class="tbl"><summary>Ver como tabla</summary><table id="wTable"></table></details>
   </section>
   </div>
 </div>
@@ -271,12 +330,31 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
   // Siempre se guarda primero en local (instantáneo, funciona sin internet) y después se sube.
   async function save(id,data){
     upsertLocal({id,...data});enqueue({op:"upsert",id,row:toRow({id,...data})});
-    localSave();render();flush();
+    localSave();render();flush();buzz(25);
   }
   async function remove(id){
     tomas=tomas.filter(x=>x.id!==id);enqueue({op:"delete",id});
-    localSave();render();flush();
+    localSave();render();flush();buzz([20,60,20]);
   }
+  // Vibración corta como confirmación (Android; en iPhone no hay soporte y no pasa nada)
+  function buzz(p){try{navigator.vibrate&&navigator.vibrate(p)}catch(e){}}
+
+  /* ---------- pantalla encendida mientras corre la teta ---------- */
+  let wakeLock=null, wakeBusy=false;
+  async function syncWakeLock(want){
+    if(!("wakeLock" in navigator))return;
+    if(want&&!wakeLock&&!wakeBusy&&!document.hidden){
+      wakeBusy=true;
+      try{
+        wakeLock=await navigator.wakeLock.request("screen");
+        wakeLock.addEventListener("release",()=>{wakeLock=null;$("liveWl").hidden=true});
+      }catch(e){wakeLock=null}
+      finally{wakeBusy=false}
+    }else if(!want&&wakeLock){const w=wakeLock;wakeLock=null;try{await w.release()}catch(e){}}
+    $("liveWl").hidden=!(want&&wakeLock);
+  }
+  // El navegador suelta el bloqueo al cambiar de app; se vuelve a pedir al regresar
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)syncWakeLock(tomas.some(x=>x.tipo==="teta"&&!x.fin))});
   const newId=()=>"t"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 
   async function flush(){
@@ -389,7 +467,9 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
     $("live").hidden=!active;
     $("qTetaSub").textContent=active?"en curso":"empezar ahora";
     if(active){$("liveStart").textContent=hhmm(active.t)}
+    syncWakeLock(!!active);
     tick();
+    renderWeek(sorted);
 
     // day
     const from=startOfDay(dayOffset), to=from+864e5;
@@ -437,6 +517,161 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
       list.appendChild(b);
     });
   }
+
+  /* ---------- semana ---------- */
+  let weekOffset=0, metric="ml", tipIdx=null, lastWeek=null;
+  const GAP_MAX=12*60; // intervalos de más de 12 h se ignoran (probablemente faltan datos)
+  const hm=min=>{min=Math.round(min);return min<60?min+" min":Math.floor(min/60)+" h "+pad(min%60)};
+  const METRICS={
+    ml:{cap:"Mililitros de mamadera por día",val:d=>d.mat+d.form,fmt:v=>Math.round(v)+" ml",unit:"ml"},
+    teta:{cap:"Minutos de teta por día",val:d=>d.teta,fmt:v=>hm(v),unit:"min"},
+    count:{cap:"Cantidad de tomas por día",val:d=>d.count,fmt:v=>(Math.round(v*10)/10).toString().replace(".",","),unit:""},
+    gap:{cap:"Tiempo promedio entre tomas, por día",val:d=>d.gaps.length?d.gaps.reduce((a,b)=>a+b,0)/d.gaps.length:0,fmt:v=>hm(v),unit:"min"}
+  };
+
+  function weekDays(sorted,off){
+    const days=[];
+    for(let i=6;i>=0;i--){
+      const back=off*7+i, from=startOfDay(back), to=startOfDay(back-1);
+      const d={from,mat:0,form:0,teta:0,count:0,gaps:[]};
+      sorted.forEach((x,k)=>{
+        if(x.t<from||x.t>=to)return;
+        d.count++;
+        if(x.tipo==="materna")d.mat+=+x.ml||0;
+        else if(x.tipo==="formula")d.form+=+x.ml||0;
+        else if(x.fin)d.teta+=Math.round((x.fin-x.t)/6e4);
+        if(k>0){const g=(x.t-sorted[k-1].t)/6e4;if(g>0&&g<=GAP_MAX)d.gaps.push(g)}
+      });
+      days.push(d);
+    }
+    return days;
+  }
+  function summary(days,m){
+    const withData=days.filter(d=>d.count);
+    if(!withData.length)return null;
+    if(m==="gap"){
+      const all=days.flatMap(d=>d.gaps);
+      if(!all.length)return null;
+      return {avg:all.reduce((a,b)=>a+b,0)/all.length,second:Math.max(...all)};
+    }
+    const tot=days.reduce((a,d)=>a+METRICS[m].val(d),0);
+    return {avg:tot/withData.length,second:tot};
+  }
+  function niceStep(max,n){
+    if(metric==="gap"||metric==="teta"){ // minutos → pasos que se leen como horas
+      const opts=[15,30,60,90,120,180,240];return opts.find(s=>s*n>=max)||Math.ceil(max/n/60)*60;
+    }
+    const raw=Math.max(max,1)/n, p=Math.pow(10,Math.floor(Math.log10(raw))), f=raw/p;
+    return (f<=1?1:f<=2?2:f<=5?5:10)*p;
+  }
+  const tickLbl=v=>metric==="gap"||metric==="teta"?(v===0?"0":v%60?hm(v).replace(" min","m").replace(" h ","h"):v/60+"h"):String(v);
+  const colPath=(x,y,w,h,r)=>{if(h<=0)return"";r=Math.min(r,h,w/2);return`M${x},${y+h}V${y+r}A${r},${r} 0 0 1 ${x+r},${y}H${x+w-r}A${r},${r} 0 0 1 ${x+w},${y+r}V${y+h}Z`};
+  const svgEl=(tag,attrs)=>{const e=document.createElementNS("http://www.w3.org/2000/svg",tag);for(const k in attrs)e.setAttribute(k,attrs[k]);return e};
+  const dayName=(from,short)=>{const back=Math.round((startOfDay(0)-from)/864e5);if(back===0)return "Hoy";if(back===1&&!short)return "Ayer";const s=new Date(from).toLocaleDateString("es-AR",{weekday:short?"short":"long"}).replace(".","");return s.charAt(0).toUpperCase()+s.slice(1)};
+
+  function renderWeek(sorted){
+    const days=weekDays(sorted,weekOffset), prev=weekDays(sorted,weekOffset+1), M=METRICS[metric];
+    lastWeek=days;
+    document.querySelectorAll("[data-metric]").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.metric===metric)));
+    const f=new Date(days[0].from), l=new Date(days[6].from), fmtD=d=>d.toLocaleDateString("es-AR",{day:"numeric",month:"short"}).replace(".","");
+    $("wTitle").textContent=weekOffset===0?"Últimos 7 días":weekOffset===1?"Semana anterior":"Hace "+weekOffset+" semanas";
+    $("wRange").textContent=fmtD(f)+" – "+fmtD(l);
+    $("wNext").disabled=weekOffset===0;
+    $("wCap").textContent=M.cap;
+
+    // resumen
+    const s=summary(days,metric), sp=summary(prev,metric);
+    $("wS1l").textContent=metric==="gap"?"Intervalo promedio":"Promedio por día";
+    $("wS2l").textContent=metric==="gap"?"El más largo":"Total de la semana";
+    const big=t=>{const m=t.match(/^(.*?)\s(ml|min)$/);return m?m[1]+"<span>"+m[2]+"</span>":t};
+    $("wS1").innerHTML=s?big(M.fmt(s.avg)):"—";
+    $("wS2").innerHTML=s?big(metric==="count"?String(Math.round(s.second)):M.fmt(s.second)):"—";
+    let cmp="";
+    if(s&&sp&&sp.avg>0){
+      const pct=Math.round((s.avg-sp.avg)/sp.avg*100);
+      cmp=pct===0?"igual que la semana anterior":(pct>0?"↑ ":"↓ ")+Math.abs(pct)+"% vs semana anterior";
+    }
+    $("wS1c").textContent=cmp;
+
+    // leyenda (solo si hay más de una serie)
+    $("wLegend").innerHTML=metric==="ml"?'<span><i style="background:var(--c-materna)"></i>Materna</span><span><i style="background:var(--c-formula)"></i>Fórmula</span>':"";
+    $("wLegend").hidden=metric!=="ml";
+
+    // gráfico de columnas
+    const svg=$("wSvg"), box=$("wChart");
+    const W=Math.max(260,box.clientWidth||320), H=190, pl=40, pr=4, pt=10, pb=36;
+    const iw=W-pl-pr, ih=H-pt-pb, band=iw/7, bw=Math.min(24,band*.55);
+    const vals=days.map(M.val), maxV=Math.max(...vals,0);
+    const step=niceStep(maxV||1,3), top=Math.max(step,Math.ceil(maxV/step)*step);
+    const y=v=>pt+ih-(v/top)*ih;
+    svg.innerHTML="";svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.setAttribute("height",H);
+    svg.setAttribute("aria-label",M.cap+": "+days.map((d,i)=>dayName(d.from,true)+" "+M.fmt(vals[i])).join(", "));
+    for(let v=0;v<=top+1e-9;v+=step){
+      svg.appendChild(svgEl("line",{class:"grid",x1:pl,x2:W-pr,y1:y(v),y2:y(v)}));
+      const t=svgEl("text",{class:"ax",x:pl-6,y:y(v)+4,"text-anchor":"end"});t.textContent=tickLbl(v);svg.appendChild(t);
+    }
+    days.forEach((d,i)=>{
+      const cx=pl+band*i+band/2, x=cx-bw/2, base=y(0);
+      d.top=y(vals[i]);d.cx=cx;
+      const g=svgEl("g",{class:"col"+(i===tipIdx?" on":"")});
+      if(metric==="ml"){
+        const h1=base-y(d.mat), h2=base-y(d.form);
+        if(d.mat)g.appendChild(svgEl("path",{d:colPath(x,base-h1,bw,h1,d.form?0:4),fill:"var(--c-materna)"}));
+        if(d.form){const gap=d.mat?2:0, hh=h2-gap; if(hh>0)g.appendChild(svgEl("path",{d:colPath(x,base-h1-h2,bw,hh,4),fill:"var(--c-formula)"}))}
+      }else{
+        const h=base-y(vals[i]);
+        if(vals[i])g.appendChild(svgEl("path",{d:colPath(x,base-h,bw,h,4),fill:metric==="teta"?"var(--c-teta)":"var(--c-accent)"}));
+      }
+      svg.appendChild(g);
+      const today=weekOffset===0&&i===6;
+      const t1=svgEl("text",{class:"xl"+(today?" today":""),x:cx,y:H-pb+16,"text-anchor":"middle"});t1.textContent=dayName(d.from,true);svg.appendChild(t1);
+      const t2=svgEl("text",{class:"ax",x:cx,y:H-pb+30,"text-anchor":"middle"});t2.textContent=new Date(d.from).getDate();svg.appendChild(t2);
+      const hit=svgEl("rect",{class:"hit",x:pl+band*i,y:pt,width:band,height:ih+pb,"data-i":i});svg.appendChild(hit);
+    });
+    box.classList.toggle("sel",tipIdx!=null);
+    showTip(tipIdx);
+
+    // tabla
+    let rows='<tr><th>Día</th><th>Materna</th><th>Fórmula</th><th>Teta</th><th>Tomas</th><th>Interv.</th></tr>';
+    days.forEach(d=>{rows+="<tr><td>"+dayName(d.from,true)+" "+new Date(d.from).getDate()+"</td><td>"+d.mat+"</td><td>"+d.form+"</td><td>"+d.teta+"</td><td>"+d.count+"</td><td>"+(d.gaps.length?hm(METRICS.gap.val(d)):"—")+"</td></tr>"});
+    $("wTable").innerHTML=rows;
+  }
+
+  function showTip(i){
+    const tip=$("wTip"), box=$("wChart");
+    tipIdx=i;
+    box.classList.toggle("sel",i!=null);
+    box.querySelectorAll(".col").forEach((c,k)=>c.classList.toggle("on",k===i));
+    if(i==null||!lastWeek){tip.hidden=true;return}
+    const d=lastWeek[i], M=METRICS[metric];
+    const r=(sw,lbl,v)=>'<div class="r"><span>'+(sw?'<i style="background:'+sw+'"></i>':"")+lbl+'</span><span class="num">'+v+"</span></div>";
+    let html="<b>"+dayName(d.from)+" "+new Date(d.from).getDate()+"</b>";
+    if(metric==="ml")html+=r("var(--c-materna)","Materna",d.mat+" ml")+r("var(--c-formula)","Fórmula",d.form+" ml")+r("","Total",(d.mat+d.form)+" ml");
+    else if(metric==="teta")html+=r("","Teta",hm(d.teta));
+    else if(metric==="count")html+=r("","Tomas",d.count);
+    else html+=r("","Promedio",d.gaps.length?hm(M.val(d)):"—")+r("","Más largo",d.gaps.length?hm(Math.max(...d.gaps)):"—");
+    if(weekOffset===0&&i===6)html+='<div class="hint" style="margin-top:4px">Día en curso</div>';
+    html+='<button type="button" id="wGo">Ver el día →</button>';
+    tip.innerHTML=html;tip.hidden=false;
+    // posición: arriba de la columna, sin salirse del gráfico
+    const W=box.clientWidth, tw=tip.offsetWidth;
+    tip.style.left=Math.min(W-tw/2,Math.max(tw/2,d.cx))+"px";
+    tip.style.top=d.top+"px";
+    $("wGo").addEventListener("click",()=>{
+      dayOffset=Math.round((startOfDay(0)-d.from)/864e5);tipIdx=null;render();
+      document.querySelector(".daynav").scrollIntoView({behavior:"smooth",block:"start"});
+    });
+  }
+
+  $("wSvg").addEventListener("click",e=>{const i=e.target.dataset&&e.target.dataset.i;if(i==null)return;const n=+i;showTip(tipIdx===n?null:n)});
+  $("wSvg").addEventListener("pointermove",e=>{if(e.pointerType!=="mouse")return;const i=e.target.dataset&&e.target.dataset.i;if(i!=null&&+i!==tipIdx)showTip(+i)});
+  $("wChart").addEventListener("pointerleave",e=>{if(e.pointerType==="mouse")showTip(null)});
+  document.addEventListener("click",e=>{if(tipIdx!=null&&!$("wChart").contains(e.target))showTip(null)});
+  $("wPrev").addEventListener("click",()=>{weekOffset++;tipIdx=null;render()});
+  $("wNext").addEventListener("click",()=>{if(weekOffset>0){weekOffset--;tipIdx=null;render()}});
+  document.querySelectorAll("[data-metric]").forEach(b=>b.addEventListener("click",()=>{metric=b.dataset.metric;tipIdx=null;render()}));
+  let rzT=null;
+  new ResizeObserver(()=>{clearTimeout(rzT);rzT=setTimeout(render,100)}).observe($("wChart"));
 
   function tick(){
     const sorted=[...tomas].sort((a,b)=>b.t-a.t);
