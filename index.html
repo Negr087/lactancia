@@ -151,6 +151,24 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
 .tbl td{text-align:right;padding:6px 4px;border-top:1px solid var(--line);font-family:var(--f-mono);font-size:12px}
 .tbl td:first-child{font-family:var(--f-body)}
 .wl{font-size:12px;opacity:.85;margin-top:2px}
+/* Peso */
+.ptop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ptop h2{font-size:19px;font-weight:700}
+.ptop .btn{padding:9px 14px;font-size:14px}
+.ins{margin:0;padding:12px 14px 12px 30px;display:flex;flex-direction:column;gap:6px;font-size:14px;background:var(--bg);border-radius:14px}
+.prow .what{flex-direction:column;align-items:flex-start;gap:2px}
+.prow .l1{font-size:13px}
+.prow .l2{font-size:12px;color:var(--muted)}
+.chart .band1{fill:var(--accent-soft);opacity:.5}
+.chart .band2{fill:var(--accent-soft)}
+.chart .p50{stroke:var(--c-accent);stroke-width:1;stroke-dasharray:3 3;opacity:.6;fill:none}
+.chart .wline{stroke:var(--fg);stroke-width:2;fill:none;stroke-linejoin:round}
+.chart .wpt{fill:var(--surface);stroke:var(--fg);stroke-width:2}
+.chart .proj{stroke:var(--c-accent);stroke-width:2;stroke-dasharray:5 4;fill:none}
+.chart .todayl{stroke:var(--c-accent);stroke-width:1.5;opacity:.6}
+.chart .plbl{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
+.legend .ln{display:inline-block;width:16px;height:0;border-top:2px solid var(--fg);margin-right:6px;vertical-align:3px}
+.legend .ln.d{border-top:2px dashed var(--c-accent)}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 
@@ -250,6 +268,31 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
     </div>
     <details class="tbl"><summary>Ver como tabla</summary><table id="wTable"></table></details>
   </section>
+
+  <section class="card" id="peso">
+    <div class="ptop">
+      <h2>Peso</h2>
+      <button class="btn btn-ghost" id="pAdd" type="button">+ Cargar peso</button>
+    </div>
+    <div class="stats">
+      <div class="stat s-total"><div class="lbl">Último peso</div><div class="v num" id="pLast">—</div><div class="cmp" id="pLastC"></div></div>
+      <div class="stat s-total"><div class="lbl">Ritmo</div><div class="v num" id="pRate">—</div><div class="cmp" id="pRateC"></div></div>
+      <div class="stat s-total"><div class="lbl">Percentil OMS</div><div class="v num" id="pPct">—</div><div class="cmp" id="pPctC"></div></div>
+      <div class="stat s-total"><div class="lbl" id="pProjL">Hoy estaría en</div><div class="v num" id="pProj">—</div><div class="cmp" id="pProjC"></div></div>
+    </div>
+    <div>
+      <div class="hint" style="margin-bottom:8px">Peso según días de vida, sobre las curvas de la OMS para nenas</div>
+      <div class="legend" style="margin-bottom:8px">
+        <span><span class="ln"></span>Filippa</span>
+        <span><span class="ln d"></span>Proyección</span>
+        <span><i style="background:var(--accent-soft)"></i>p15–p85</span>
+      </div>
+      <div class="chart" id="pChart"><svg id="pSvg" role="img"></svg></div>
+    </div>
+    <ul class="ins" id="pIns" hidden></ul>
+    <div class="list" id="pList"></div>
+    <div class="hint">Percentiles y proyección son orientativos (curvas OMS). Lo que vale es el control pediátrico.</div>
+  </section>
   </div>
 </div>
 
@@ -289,6 +332,24 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
   </form>
 </div>
 
+<div class="scrim" id="pScrim" hidden>
+  <form class="sheet" id="pForm" role="dialog" aria-modal="true" aria-labelledby="pfTitle" novalidate>
+    <h2 id="pfTitle">Nuevo peso</h2>
+    <div class="two">
+      <div class="field"><label class="lbl" for="pfFecha">Fecha</label><input id="pfFecha" type="date" required></div>
+      <div class="field"><label class="lbl" for="pfKg">Peso (kg)</label><input id="pfKg" type="text" inputmode="decimal" placeholder="4,150" autocomplete="off"></div>
+    </div>
+    <div class="hint" id="pfHint"></div>
+    <div class="err" id="pfErr" hidden></div>
+    <div class="actions">
+      <button type="button" class="btn btn-danger" id="pfDel" hidden>Borrar</button>
+      <span style="flex:1"></span>
+      <button type="button" class="btn btn-ghost" id="pfCancel">Cancelar</button>
+      <button type="submit" class="btn btn-primary" id="pfSave">Guardar</button>
+    </div>
+  </form>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 (function(){
@@ -309,18 +370,31 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
   // Completá con los datos de tu proyecto: Supabase → Project Settings → API
   const SUPABASE_URL="https://natgzxjzfhwkttoagqcu.supabase.co";
   const SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5hdGd6eGp6Zmh3a3R0b2FncWN1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMwMDIxNTQsImV4cCI6MjA4ODU3ODE1NH0.3VCWhRzR2n1Q6e2vV1jICKhgapRkmErgTuIsDEWbuYE";
-  const TABLE="tomas", LS_T="tomas", LS_Q="tomas_pendientes", LS_MIG="tomas_migradas_supabase";
-  let sb=null, user=null, channel=null, queue=[], flushing=false, retryT=null;
+  const TABLE="tomas", PTABLE="pesos", LS_T="tomas", LS_P="pesos", LS_Q="tomas_pendientes", LS_MIG="tomas_migradas_supabase";
+  let sb=null, user=null, channel=null, pChannel=null, queue=[], flushing=false, retryT=null;
+  let pesos=[];           // {id,fecha:"YYYY-MM-DD",g}
+  const tblOf=q=>q.tbl||TABLE; // las operaciones viejas en cola no tienen tabla → tomas
 
   function localLoad(){
     try{tomas=JSON.parse(localStorage.getItem(LS_T)||"[]")}catch(e){tomas=[]}
+    try{pesos=JSON.parse(localStorage.getItem(LS_P)||"[]")}catch(e){pesos=[]}
     try{queue=JSON.parse(localStorage.getItem(LS_Q)||"[]")}catch(e){queue=[]}
   }
-  function localSave(){try{localStorage.setItem(LS_T,JSON.stringify(tomas));localStorage.setItem(LS_Q,JSON.stringify(queue))}catch(e){}}
+  function localSave(){try{localStorage.setItem(LS_T,JSON.stringify(tomas));localStorage.setItem(LS_P,JSON.stringify(pesos));localStorage.setItem(LS_Q,JSON.stringify(queue))}catch(e){}}
+  const toPRow=r=>({id:r.id,fecha:r.fecha,gramos:r.g});
+  const fromPRow=r=>({id:r.id,fecha:String(r.fecha).slice(0,10),g:Number(r.gramos)});
+  const upsertPeso=rec=>{const i=pesos.findIndex(x=>x.id===rec.id);if(i>=0)pesos[i]=rec;else pesos.push(rec)};
+  const pending=(tbl,id)=>queue.some(q=>q.id===id&&tblOf(q)===tbl);
+  function pesosErr(e){
+    const missing=e&&(e.code==="42P01"||e.code==="PGRST205"||/pesos/.test(e.message||""));
+    if(!missing)return;
+    $("notice").textContent="Falta crear la tabla de pesos en Supabase: corré de nuevo supabase.sql. Mientras tanto los pesos quedan en este dispositivo.";
+    $("notice").hidden=false;
+  }
   const toRow=r=>({id:r.id,tipo:r.tipo,t:r.t,fin:r.fin??null,ml:r.ml??null});
   const fromRow=r=>{const o={id:r.id,tipo:r.tipo,t:Number(r.t),fin:r.fin==null?null:Number(r.fin)};if(r.ml!=null)o.ml=r.ml;return o};
   const upsertLocal=rec=>{const i=tomas.findIndex(x=>x.id===rec.id);if(i>=0)tomas[i]=rec;else tomas.push(rec)};
-  function enqueue(op){queue=queue.filter(q=>q.id!==op.id);queue.push(op)}
+  function enqueue(op){queue=queue.filter(q=>!(q.id===op.id&&tblOf(q)===tblOf(op)));queue.push(op)}
   function setSync(){
     if(!sb){$("sync").textContent="Guardado en este dispositivo";return}
     if(!user){$("sync").textContent="Sin sesión";return}
@@ -334,6 +408,14 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
   }
   async function remove(id){
     tomas=tomas.filter(x=>x.id!==id);enqueue({op:"delete",id});
+    localSave();render();flush();buzz([20,60,20]);
+  }
+  function savePeso(id,data){
+    upsertPeso({id,...data});enqueue({op:"upsert",tbl:PTABLE,id,row:toPRow({id,...data})});
+    localSave();render();flush();buzz(25);
+  }
+  function removePeso(id){
+    pesos=pesos.filter(x=>x.id!==id);enqueue({op:"delete",tbl:PTABLE,id});
     localSave();render();flush();buzz([20,60,20]);
   }
   // Vibración corta como confirmación (Android; en iPhone no hay soporte y no pasa nada)
@@ -360,17 +442,22 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
   async function flush(){
     if(!sb||!user||flushing)return;
     flushing=true;clearTimeout(retryT);setSync();
+    // Si una operación falla se sigue con las demás (así un problema con pesos no frena las tomas)
+    const tried=new Set();let failed=false;
     try{
-      while(queue.length){
-        const op=queue[0];
+      for(;;){
+        const op=queue.find(q=>!tried.has(q));
+        if(!op)break;
+        tried.add(op);
+        const tb=tblOf(op);
         const {error}=op.op==="delete"
-          ?await sb.from(TABLE).delete().eq("id",op.id)
-          :await sb.from(TABLE).upsert(op.row);
-        if(error)throw error;
+          ?await sb.from(tb).delete().eq("id",op.id)
+          :await sb.from(tb).upsert(op.row);
+        if(error){failed=true;if(tb===PTABLE)pesosErr(error);continue}
         queue=queue.filter(q=>q!==op);localSave();
       }
-    }catch(e){retryT=setTimeout(flush,15000)}
-    finally{flushing=false;setSync()}
+    }catch(e){failed=true}
+    finally{flushing=false;setSync();if(failed)retryT=setTimeout(flush,15000)}
   }
 
   async function pull(){
@@ -381,19 +468,33 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
     // Primera vez: subir las tomas que ya estaban guardadas solo en este navegador
     let migrated=false;try{migrated=localStorage.getItem(LS_MIG)==="1"}catch(e){}
     if(!migrated){
-      tomas.forEach(r=>{if(!ids.has(r.id)&&!queue.some(q=>q.id===r.id))enqueue({op:"upsert",id:r.id,row:toRow(r)})});
+      tomas.forEach(r=>{if(!ids.has(r.id)&&!pending(TABLE,r.id))enqueue({op:"upsert",id:r.id,row:toRow(r)})});
       try{localStorage.setItem(LS_MIG,"1")}catch(e){}
     }
     // Lo remoto manda, salvo los cambios locales que todavía no se subieron
     tomas=remote;
-    queue.forEach(q=>{if(q.op==="delete")tomas=tomas.filter(x=>x.id!==q.id);else upsertLocal(fromRow(q.row))});
+    queue.forEach(q=>{if(tblOf(q)!==TABLE)return;if(q.op==="delete")tomas=tomas.filter(x=>x.id!==q.id);else upsertLocal(fromRow(q.row))});
     localSave();render();flush();
+  }
+  async function pullPesos(){
+    if(!sb||!user)return;
+    const {data,error}=await sb.from(PTABLE).select("id,fecha,gramos").order("fecha");
+    if(error){pesosErr(error);return}
+    pesos=data.map(fromPRow);
+    queue.forEach(q=>{if(tblOf(q)!==PTABLE)return;if(q.op==="delete")pesos=pesos.filter(x=>x.id!==q.id);else upsertPeso(fromPRow(q.row))});
+    localSave();render();
   }
 
   function onChange(p){
     const id=(p.new&&p.new.id)||(p.old&&p.old.id);
-    if(!id||queue.some(q=>q.id===id))return; // hay un cambio local más nuevo pendiente
+    if(!id||pending(TABLE,id))return; // hay un cambio local más nuevo pendiente
     if(p.eventType==="DELETE")tomas=tomas.filter(x=>x.id!==id);else upsertLocal(fromRow(p.new));
+    localSave();render();
+  }
+  function onPesoChange(p){
+    const id=(p.new&&p.new.id)||(p.old&&p.old.id);
+    if(!id||pending(PTABLE,id))return;
+    if(p.eventType==="DELETE")pesos=pesos.filter(x=>x.id!==id);else upsertPeso(fromPRow(p.new));
     localSave();render();
   }
 
@@ -420,7 +521,13 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
         .on("postgres_changes",{event:"*",schema:"public",table:TABLE},onChange)
         .subscribe(st=>{if(st==="SUBSCRIBED")pull()});
     }
-    pull();
+    // canal aparte: si la tabla de pesos no existe todavía, no rompe el de tomas
+    if(!pChannel){
+      pChannel=sb.channel("pesos-cambios")
+        .on("postgres_changes",{event:"*",schema:"public",table:PTABLE},onPesoChange)
+        .subscribe(st=>{if(st==="SUBSCRIBED")pullPesos()});
+    }
+    pull();pullPesos();
   }
 
   $("login").addEventListener("submit",async e=>{
@@ -438,8 +545,9 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
   $("logout").addEventListener("click",async()=>{
     if(queue.length&&!confirm("Hay "+queue.length+" cambio(s) sin subir y se van a perder. ¿Salir igual?"))return;
     if(channel){sb.removeChannel(channel);channel=null}
+    if(pChannel){sb.removeChannel(pChannel);pChannel=null}
     await sb.auth.signOut();
-    user=null;tomas=[];queue=[];localSave();render();lock(true);
+    user=null;tomas=[];pesos=[];queue=[];localSave();render();lock(true);
   });
 
   async function init(){
@@ -452,9 +560,9 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
     }
     sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{auth:{persistSession:true,autoRefreshToken:true}});
     sb.auth.onAuthStateChange((ev)=>{if(ev==="SIGNED_OUT"&&user){user=null;lock(true)}});
-    window.addEventListener("online",()=>{pull()});
+    window.addEventListener("online",()=>{pull();pullPesos()});
     window.addEventListener("offline",setSync);
-    document.addEventListener("visibilitychange",()=>{if(!document.hidden)pull()});
+    document.addEventListener("visibilitychange",()=>{if(!document.hidden){pull();pullPesos()}});
     const {data:{session}}=await sb.auth.getSession();
     if(session)start(session);else lock(true);
   }
@@ -470,6 +578,7 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
     syncWakeLock(!!active);
     tick();
     renderWeek(sorted);
+    renderPeso(sorted);
 
     // day
     const from=startOfDay(dayOffset), to=from+864e5;
@@ -671,7 +780,237 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
   $("wNext").addEventListener("click",()=>{if(weekOffset>0){weekOffset--;tipIdx=null;render()}});
   document.querySelectorAll("[data-metric]").forEach(b=>b.addEventListener("click",()=>{metric=b.dataset.metric;tipIdx=null;render()}));
   let rzT=null;
-  new ResizeObserver(()=>{clearTimeout(rzT);rzT=setTimeout(render,100)}).observe($("wChart"));
+  const ro=new ResizeObserver(()=>{clearTimeout(rzT);rzT=setTimeout(render,100)});
+  ro.observe($("wChart"));ro.observe($("pChart"));
+
+  /* ---------- peso ---------- */
+  const NAC="2026-10-20"; // fecha de nacimiento de Filippa
+  // OMS, peso para la edad, nenas: [día de vida, L, M (kg), S]. Diario hasta el día 28, después semanal.
+  const WHO=[[0,0.3809,3.2322,0.14171],[1,0.3259,3.1957,0.14578],[2,0.3101,3.2104,0.14637],[3,0.2986,3.2315,0.14657],[4,0.2891,3.2558,0.14658],[5,0.281,3.2821,0.14646],[6,0.2737,3.3099,0.14626],[7,0.2671,3.3388,0.146],[8,0.2609,3.3687,0.14569],[9,0.2551,3.3995,0.14534],[10,0.2497,3.4314,0.14498],[11,0.2446,3.4643,0.14459],[12,0.2397,3.4983,0.1442],[13,0.2349,3.5333,0.1438],[14,0.2304,3.5693,0.14339],[15,0.226,3.6063,0.14299],[16,0.2218,3.6438,0.14258],[17,0.2177,3.6818,0.14218],[18,0.2137,3.7201,0.14177],[19,0.2099,3.7584,0.14138],[20,0.2061,3.7968,0.14098],[21,0.2024,3.8352,0.1406],[22,0.1989,3.8735,0.14021],[23,0.1954,3.9116,0.13984],[24,0.1919,3.9495,0.13947],[25,0.1886,3.9872,0.1391],[26,0.1853,4.0247,0.13875],[27,0.1821,4.0618,0.1384],[28,0.1789,4.0987,0.13805],[35,0.1582,4.3476,0.13583],[42,0.1395,4.5793,0.13392],[49,0.1224,4.795,0.13228],[56,0.1065,4.9959,0.13087],[63,0.0918,5.1842,0.12966],[70,0.0779,5.3618,0.12861],[77,0.0648,5.5295,0.1277],[84,0.0525,5.6883,0.12691],[91,0.0407,5.8393,0.12622],[98,0.0295,5.9831,0.12561],[105,0.0188,6.1202,0.12507],[112,0.0086,6.2511,0.12459],[119,-0.0013,6.3761,0.12417],[126,-0.0107,6.4956,0.1238],[133,-0.0198,6.6099,0.12346],[140,-0.0285,6.7192,0.12317],[147,-0.0369,6.8238,0.12291],[154,-0.045,6.9241,0.12268],[161,-0.0529,7.0205,0.12248],[168,-0.0605,7.1133,0.12231],[175,-0.0678,7.2029,0.12217],[182,-0.0749,7.2894,0.12205],[183,-0.0759,7.3016,0.12204]];
+  const MAXAGE=183;
+  function lms(day){
+    day=Math.max(0,Math.min(MAXAGE,day));let i=0;
+    while(i<WHO.length-2&&WHO[i+1][0]<=day)i++;
+    const a=WHO[i],b=WHO[i+1],f=(day-a[0])/(b[0]-a[0]);
+    return [a[1]+(b[1]-a[1])*f,a[2]+(b[2]-a[2])*f,a[3]+(b[3]-a[3])*f];
+  }
+  const zOf=(g,day)=>{const [L,M,S]=lms(day);return (Math.pow(g/1000/M,L)-1)/(L*S)};
+  const gAt=(z,day)=>{const [L,M,S]=lms(day);return 1000*M*Math.pow(1+L*S*z,1/L)};
+  const pctOf=z=>{const t=1/(1+.2316419*Math.abs(z)),d=.3989423*Math.exp(-z*z/2),p=d*t*(.3193815+t*(-.3565638+t*(1.781478+t*(-1.821256+t*1.330274))));return 100*(z>0?1-p:p)};
+  const pctTxt=z=>{const p=pctOf(z);return p<1?"<1":p>99?">99":String(Math.round(p))};
+  const PCTS=[[-1.881,"p3"],[-1.036,"p15"],[0,"p50"],[1.036,"p85"],[1.881,"p97"]];
+
+  const dStart=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d).getTime()};
+  const ageOf=s=>Math.round((dStart(s)-dStart(NAC))/864e5);
+  const todayStr=()=>{const d=new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate())};
+  const fmtD=ms=>new Date(ms).toLocaleDateString("es-AR",{day:"numeric",month:"short"}).replace(".","");
+  const fmtFecha=s=>fmtD(dStart(s));
+  const kg=g=>(g/1000).toFixed(3).replace(".",",");
+  const kg2=g=>(g/1000).toFixed(2).replace(".",",");
+  const dec=v=>(Math.round(v*10)/10).toString().replace(".",",");
+  const sgn=v=>(v>0?"+":v<0?"−":"")+Math.abs(v);
+  const sortPesos=()=>[...pesos].sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:a.id<b.id?-1:1);
+
+  // Promedios diarios de alimentación en [desde, hasta), contando solo días con registros
+  function feedStats(sorted,fromMs,toMs){
+    let days=0,mat=0,form=0,teta=0,count=0;
+    for(let t=fromMs;t<toMs;){
+      const nx=new Date(t);nx.setDate(nx.getDate()+1);const n=nx.getTime();
+      const ds=sorted.filter(x=>x.t>=t&&x.t<n);
+      if(ds.length){
+        days++;count+=ds.length;
+        ds.forEach(x=>{if(x.tipo==="materna")mat+=+x.ml||0;else if(x.tipo==="formula")form+=+x.ml||0;else if(x.fin)teta+=(x.fin-x.t)/6e4});
+      }
+      t=n;
+    }
+    return days?{days,mat:mat/days,form:form/days,teta:teta/days,count:count/days}:null;
+  }
+
+  function renderPeso(sorted){
+    const ps=sortPesos(), tAge=ageOf(todayStr());
+    const last=ps[ps.length-1], prev=ps[ps.length-2];
+    const big=(v,u)=>v+(u?"<span>"+u+"</span>":"");
+    let zLast=null,lAge=null,rate=null;
+    ["pLastC","pRateC","pPctC","pProjC"].forEach(id=>$(id).textContent="");
+    if(last){
+      lAge=ageOf(last.fecha);zLast=zOf(last.g,lAge);
+      $("pLast").innerHTML=big(kg(last.g),"kg");
+      $("pLastC").textContent=fmtFecha(last.fecha)+" · día "+lAge;
+      $("pPct").innerHTML="p"+pctTxt(zLast);
+      const birth=ps.find(p=>ageOf(p.fecha)===0);
+      if(birth&&birth!==last)$("pPctC").textContent="al nacer p"+pctTxt(zOf(birth.g,0));
+      if(prev&&ageOf(prev.fecha)<lAge){
+        rate=(last.g-prev.g)/(lAge-ageOf(prev.fecha));
+        $("pRate").innerHTML=big(sgn(Math.round(rate)),"g/día");
+        $("pRateC").textContent="desde el "+fmtFecha(prev.fecha)+" · ref. 20–35";
+      }else{$("pRate").textContent="—";$("pRateC").textContent="Hace falta otro peso"}
+      const future=tAge<=lAge, target=future?tAge+7:tAge;
+      $("pProjL").textContent=future?"En 7 días":"Hoy estaría en";
+      $("pProj").innerHTML=big("~"+kg2(gAt(zLast,target)),"kg");
+      $("pProjC").textContent="siguiendo su percentil"+(rate!=null?" · a este ritmo "+kg2(last.g+rate*(target-lAge)):"");
+    }else{
+      ["pLast","pRate","pPct","pProj"].forEach(id=>$(id).textContent="—");
+      $("pProjL").textContent="Hoy estaría en";
+    }
+    drawPeso(ps,tAge,zLast,lAge);
+
+    // conclusiones automáticas
+    const ins=[];
+    const birth=ps.find(p=>ageOf(p.fecha)===0);
+    if(birth){
+      const low=ps.filter(p=>{const a=ageOf(p.fecha);return a>0&&a<=10}).reduce((m,p)=>!m||p.g<m.g?p:m,null);
+      if(low&&low.g<birth.g)ins.push("Bajó "+dec((birth.g-low.g)/birth.g*100)+" % en los primeros días (día "+ageOf(low.fecha)+"). Lo esperable es hasta un 7–10 %.");
+      let rec=null;
+      for(let i=1;i<ps.length;i++){
+        const a=ps[i-1],b=ps[i];
+        if(a.g<birth.g&&b.g>=birth.g){const da=ageOf(a.fecha),db=ageOf(b.fecha);rec=da+(birth.g-a.g)/(b.g-a.g)*(db-da);break}
+      }
+      if(rec!=null){
+        const dd=Math.round(rec);
+        ins.push("Recuperó el peso de nacimiento cerca del día "+dd+" ("+fmtD(dStart(NAC)+dd*864e5+36e5)+"). Se espera entre los 10 y 14 días.");
+      }else if(low&&last.g<birth.g)ins.push("Le faltan "+(birth.g-last.g)+" g para volver al peso de nacimiento.");
+    }
+    if(prev&&zLast!=null&&ageOf(prev.fecha)>=7){
+      const zp=zOf(prev.g,ageOf(prev.fecha)), dz=zLast-zp, tr="p"+pctTxt(zp)+" → p"+pctTxt(zLast);
+      ins.push(Math.abs(dz)<.25?"Entre los dos últimos controles se mantuvo en su curva ("+tr+"). Es lo que se busca."
+        :dz>0?"Entre los dos últimos controles subió de curva ("+tr+")."
+        :"Entre los dos últimos controles bajó de curva ("+tr+"). Vale la pena comentarlo en el control.");
+    }
+    const fs=feedStats(sorted,startOfDay(7),startOfDay(0));
+    if(fs){
+      const mam=fs.mat+fs.form, gNow=zLast!=null?gAt(zLast,tAge):null;
+      let s="Últimos "+fs.days+" días: "+Math.round(mam)+" ml/día de mamadera";
+      if(gNow)s+=" (≈ "+Math.round(mam/(gNow/1000))+" ml por kg, sin contar la teta)";
+      if(mam)s+=", "+Math.round(fs.mat/mam*100)+" % leche materna";
+      s+=", "+Math.round(fs.teta)+" min de teta y "+dec(fs.count)+" tomas por día.";
+      ins.push(s);
+      const fp=feedStats(sorted,startOfDay(14),startOfDay(7));
+      if(fp&&fp.mat>0){
+        const ch=(fs.mat-fp.mat)/fp.mat;
+        if(Math.abs(ch)>=.1)ins.push("La leche materna en mamadera "+(ch<0?"bajó":"subió")+" de "+Math.round(fp.mat)+" a "+Math.round(fs.mat)+" ml/día respecto de la semana anterior, y la fórmula pasó de "+Math.round(fp.form)+" a "+Math.round(fs.form)+" ml/día.");
+      }
+    }
+    const ul=$("pIns");ul.innerHTML="";ul.hidden=!ins.length;
+    ins.forEach(t=>{const li=document.createElement("li");li.textContent=t;ul.appendChild(li)});
+
+    // lista de pesos (más reciente arriba) con lo que tomó entre un control y el siguiente
+    const list=$("pList");list.innerHTML="";
+    if(!ps.length){list.innerHTML='<div class="empty">Todavía no hay pesos cargados.</div>';return}
+    for(let i=ps.length-1;i>=0;i--){
+      const p=ps[i],q=ps[i-1],a=ageOf(p.fecha);
+      let l1="día "+a+(a===0?" · nacimiento":"");
+      if(q){const dd=a-ageOf(q.fecha),dg=p.g-q.g;l1+=" · "+sgn(dg)+" g"+(dd>0?" ("+sgn(Math.round(dg/dd))+" g/día)":"")}
+      if(a>=0)l1+=" · p"+pctTxt(zOf(p.g,a));
+      let l2="";
+      if(q){const f=feedStats(sorted,dStart(q.fecha),dStart(p.fecha));if(f)l2="Mamadera ≈ "+Math.round(f.mat+f.form)+" ml/día · teta "+Math.round(f.teta)+" min/día ("+f.days+(f.days===1?" día":" días")+" con registros)"}
+      const b=document.createElement("button");b.type="button";b.className="row prow";
+      b.innerHTML='<span class="hr"></span><span class="what"><span class="l1"></span><span class="l2"></span></span><span class="amt num"></span>';
+      b.querySelector(".hr").textContent=fmtFecha(p.fecha);
+      b.querySelector(".l1").textContent=l1;
+      b.querySelector(".l2").textContent=l2;b.querySelector(".l2").hidden=!l2;
+      b.querySelector(".amt").textContent=kg(p.g)+" kg";
+      b.addEventListener("click",()=>openPeso(p));
+      list.appendChild(b);
+    }
+  }
+
+  function drawPeso(ps,tAge,zLast,lAge){
+    const svg=$("pSvg"), box=$("pChart");
+    const W=Math.max(260,box.clientWidth||320), H=220, pl=36, pr=30, pt=14, pb=30;
+    const iw=W-pl-pr, ih=H-pt-pb;
+    const span=Math.max(tAge,lAge??0)+21;
+    const xmax=Math.min(MAXAGE,Math.max(42,Math.ceil(span/7)*7));
+    const xs=xmax<=63?7:xmax<=126?14:28;
+    const hi=ps.map(p=>p.g);
+    let ymin=Math.min(gAt(-1.881,0),...hi)/1000, ymax=Math.max(gAt(1.881,xmax),...hi)/1000;
+    ymin=Math.floor(ymin*2)/2;ymax=Math.ceil(ymax*2)/2;
+    const ys=ymax-ymin>4?1:.5;
+    const X=d=>pl+d/xmax*iw, Y=kgv=>pt+ih-(kgv-ymin)/(ymax-ymin)*ih;
+    svg.innerHTML="";svg.setAttribute("viewBox",`0 0 ${W} ${H}`);svg.setAttribute("height",H);
+    svg.setAttribute("aria-label","Peso de Filippa por día de vida: "+ps.map(p=>"día "+ageOf(p.fecha)+" "+kg(p.g)+" kg").join(", "));
+    for(let v=ymin;v<=ymax+1e-9;v+=ys){
+      svg.appendChild(svgEl("line",{class:"grid",x1:pl,x2:W-pr,y1:Y(v),y2:Y(v)}));
+      const t=svgEl("text",{class:"ax",x:pl-6,y:Y(v)+4,"text-anchor":"end"});t.textContent=v.toFixed(1).replace(".",",");svg.appendChild(t);
+    }
+    for(let d=0;d<=xmax;d+=xs){
+      const t=svgEl("text",{class:"ax",x:X(d),y:H-pb+16,"text-anchor":"middle"});t.textContent=d===0?"0":String(d);svg.appendChild(t);
+    }
+    const tl=svgEl("text",{class:"xl",x:W-pr,y:H-4,"text-anchor":"end"});tl.textContent="días de vida";svg.appendChild(tl);
+    // bandas de percentiles
+    const curve=z=>{const pts=[];for(let d=0;d<=xmax;d++)pts.push([X(d),Y(gAt(z,d)/1000)]);return pts};
+    const band=(z1,z2,cls)=>{const a=curve(z2),b=curve(z1).reverse();svg.appendChild(svgEl("path",{class:cls,d:"M"+a.concat(b).map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join("L")+"Z"}))};
+    band(-1.881,1.881,"band1");band(-1.036,1.036,"band2");
+    svg.appendChild(svgEl("path",{class:"p50",d:"M"+curve(0).map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join("L")}));
+    PCTS.forEach(([z,n])=>{const t=svgEl("text",{class:"plbl",x:W-pr+4,y:Y(gAt(z,xmax)/1000)+3});t.textContent=n;svg.appendChild(t)});
+    // hoy
+    if(tAge>=0&&tAge<=xmax){
+      svg.appendChild(svgEl("line",{class:"todayl",x1:X(tAge),x2:X(tAge),y1:pt,y2:pt+ih}));
+      const t=svgEl("text",{class:"xl today",x:X(tAge),y:pt-3,"text-anchor":"middle"});t.textContent="hoy";svg.appendChild(t);
+    }
+    // proyección siguiendo el percentil del último peso
+    if(zLast!=null&&lAge<xmax){
+      const pts=[];for(let d=lAge;d<=xmax;d++)pts.push(X(d).toFixed(1)+","+Y(gAt(zLast,d)/1000).toFixed(1));
+      svg.appendChild(svgEl("path",{class:"proj",d:"M"+pts.join("L")}));
+    }
+    // pesos reales
+    if(ps.length>1)svg.appendChild(svgEl("path",{class:"wline",d:"M"+ps.map(p=>X(ageOf(p.fecha)).toFixed(1)+","+Y(p.g/1000).toFixed(1)).join("L")}));
+    ps.forEach(p=>{
+      const c=svgEl("circle",{class:"wpt",cx:X(ageOf(p.fecha)),cy:Y(p.g/1000),r:4});
+      const ti=svgEl("title",{});ti.textContent=fmtFecha(p.fecha)+" · "+kg(p.g)+" kg";c.appendChild(ti);svg.appendChild(c);
+    });
+  }
+
+  /* formulario de peso */
+  let pEditing=null,pConfirm=false;
+  function parseG(s){
+    s=String(s||"").trim().replace(/\s|kg/gi,"").replace(",",".");
+    const n=parseFloat(s);if(!isFinite(n)||n<=0)return null;
+    return Math.round(n<100?n*1000:n); // "3,93" o "3.930" → kg; "3930" → gramos
+  }
+  function pHint(){
+    const f=$("pfFecha").value, g=parseG($("pfKg").value);
+    if(!f){$("pfHint").textContent="";return}
+    const a=ageOf(f);let t="Día "+a+" de vida";
+    if(g&&a>=0){
+      t+=" · p"+pctTxt(zOf(g,a));
+      const before=sortPesos().filter(p=>p.fecha<f&&p!==pEditing).pop();
+      if(before){const dd=a-ageOf(before.fecha),dg=g-before.g;t+=" · "+sgn(dg)+" g desde el "+fmtFecha(before.fecha)+(dd>0?" ("+sgn(Math.round(dg/dd))+" g/día)":"")}
+    }
+    $("pfHint").textContent=t;
+  }
+  function openPeso(rec){
+    pEditing=rec;pConfirm=false;$("pfErr").hidden=true;
+    $("pfDel").hidden=!rec;$("pfDel").textContent="Borrar";
+    $("pfTitle").textContent=rec?"Editar peso":"Nuevo peso";
+    $("pfFecha").min=NAC;$("pfFecha").max=todayStr();
+    $("pfFecha").value=rec?rec.fecha:todayStr();
+    $("pfKg").value=rec?kg(rec.g):"";
+    pHint();$("pScrim").hidden=false;
+    setTimeout(()=>$("pfKg").focus(),50);
+  }
+  function closePeso(){$("pScrim").hidden=true;pEditing=null}
+  function pErr(m){$("pfErr").textContent=m;$("pfErr").hidden=false}
+  $("pAdd").addEventListener("click",()=>openPeso(null));
+  $("pfCancel").addEventListener("click",closePeso);
+  $("pScrim").addEventListener("click",e=>{if(e.target===$("pScrim"))closePeso()});
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("pScrim").hidden)closePeso()});
+  ["pfFecha","pfKg"].forEach(id=>$(id).addEventListener("input",pHint));
+  $("pfDel").addEventListener("click",()=>{
+    if(!pConfirm){pConfirm=true;$("pfDel").textContent="¿Seguro? Tocá de nuevo";return}
+    removePeso(pEditing.id);closePeso();
+  });
+  $("pForm").addEventListener("submit",e=>{
+    e.preventDefault();
+    const f=$("pfFecha").value, g=parseG($("pfKg").value);
+    if(!f)return pErr("Poné la fecha.");
+    if(f<NAC||f>todayStr())return pErr("La fecha tiene que ser entre el nacimiento y hoy.");
+    if(!g)return pErr("Poné el peso, por ejemplo 4,150.");
+    if(g<1500||g>15000)return pErr("Ese peso no parece correcto. Escribilo en kg (4,150) o en gramos (4150).");
+    // un peso por día: si ya hay uno ese día, se reemplaza
+    const same=!pEditing&&pesos.find(p=>p.fecha===f);
+    const id=pEditing?pEditing.id:same?same.id:"p"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    savePeso(id,{fecha:f,g});closePeso();
+  });
 
   function tick(){
     const sorted=[...tomas].sort((a,b)=>b.t-a.t);
