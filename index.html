@@ -811,19 +811,24 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
   const sgn=v=>(v>0?"+":v<0?"−":"")+Math.abs(v);
   const sortPesos=()=>[...pesos].sort((a,b)=>a.fecha<b.fecha?-1:a.fecha>b.fecha?1:a.id<b.id?-1:1);
 
-  // Promedios diarios de alimentación en [desde, hasta), contando solo días con registros
+  // Promedios diarios de alimentación en [desde, hasta), contando solo días con registros.
+  // mat/form: promedio en los días que hubo mamadera (un día de solo teta no cuenta como 0 ml).
+  // mamAll: ml de mamadera promediados sobre todos los días (para ver si cambió el reparto mamadera/teta).
   function feedStats(sorted,fromMs,toMs){
-    let days=0,mat=0,form=0,teta=0,count=0;
+    let days=0,bDays=0,tOnly=0,mat=0,form=0,teta=0,count=0;
     for(let t=fromMs;t<toMs;){
       const nx=new Date(t);nx.setDate(nx.getDate()+1);const n=nx.getTime();
       const ds=sorted.filter(x=>x.t>=t&&x.t<n);
       if(ds.length){
         days++;count+=ds.length;
-        ds.forEach(x=>{if(x.tipo==="materna")mat+=+x.ml||0;else if(x.tipo==="formula")form+=+x.ml||0;else if(x.fin)teta+=(x.fin-x.t)/6e4});
+        let ml=0,tt=false;
+        ds.forEach(x=>{if(x.tipo==="materna"){mat+=+x.ml||0;ml+=+x.ml||0}else if(x.tipo==="formula"){form+=+x.ml||0;ml+=+x.ml||0}else{tt=true;if(x.fin)teta+=(x.fin-x.t)/6e4}});
+        if(ml>0)bDays++;else if(tt)tOnly++;
       }
       t=n;
     }
-    return days?{days,mat:mat/days,form:form/days,teta:teta/days,count:count/days}:null;
+    if(!days)return null;
+    return {days,bDays,tOnly,mat:bDays?mat/bDays:0,form:bDays?form/bDays:0,mamAll:(mat+form)/days,teta:teta/days,count:count/days};
   }
 
   function renderPeso(sorted){
@@ -878,17 +883,27 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
     }
     const fs=feedStats(sorted,startOfDay(7),startOfDay(0));
     if(fs){
-      const mam=fs.mat+fs.form, gNow=zLast!=null?gAt(zLast,tAge):null;
-      let s="Últimos "+fs.days+" días: "+Math.round(mam)+" ml/día de mamadera";
-      if(gNow)s+=" (≈ "+Math.round(mam/(gNow/1000))+" ml por kg, sin contar la teta)";
-      if(mam)s+=", "+Math.round(fs.mat/mam*100)+" % leche materna";
-      s+=", "+Math.round(fs.teta)+" min de teta y "+dec(fs.count)+" tomas por día.";
+      const mam=fs.mat+fs.form, gNow=zLast!=null?gAt(zLast,tAge):null, dd=n=>n+(n===1?" día":" días");
+      let s="Últimos "+dd(fs.days)+": ";
+      if(fs.bDays){
+        s+=Math.round(mam)+" ml/día de mamadera"+(fs.bDays<fs.days?" en los "+fs.bDays+" que tomó":"");
+        if(gNow)s+=" (≈ "+Math.round(mam/(gNow/1000))+" ml por kg, sin contar la teta)";
+        s+=", "+Math.round(fs.mat/mam*100)+" % leche materna, ";
+      }else s+="sin mamadera, ";
+      s+=Math.round(fs.teta)+" min de teta y "+dec(fs.count)+" tomas por día.";
+      if(fs.tOnly)s+=" "+(fs.tOnly===fs.days?"Todos fueron":fs.tOnly+" de "+fs.days+" fueron")+" días de solo teta.";
       ins.push(s);
       const fp=feedStats(sorted,startOfDay(14),startOfDay(7));
-      if(fp&&fp.mat>0){
-        const ch=(fs.mat-fp.mat)/fp.mat;
-        if(Math.abs(ch)>=.1)ins.push("La leche materna en mamadera "+(ch<0?"bajó":"subió")+" de "+Math.round(fp.mat)+" a "+Math.round(fs.mat)+" ml/día respecto de la semana anterior, y la fórmula pasó de "+Math.round(fp.form)+" a "+Math.round(fs.form)+" ml/día.");
+      if(fp){
+        const dMam=fp.mamAll>0?(fs.mamAll-fp.mamAll)/fp.mamAll:0, dTeta=fp.teta>0?(fs.teta-fp.teta)/fp.teta:(fs.teta>0?1:0);
+        if(dMam<=-.1&&dTeta>=.1)ins.push("Respecto de la semana anterior tomó menos mamadera ("+Math.round(fp.mamAll)+" → "+Math.round(fs.mamAll)+" ml/día) y más teta ("+Math.round(fp.teta)+" → "+Math.round(fs.teta)+" min/día): no es que coma menos, cambió de dónde viene la leche.");
+        else if(dMam>=.1&&dTeta<=-.1)ins.push("Respecto de la semana anterior tomó más mamadera ("+Math.round(fp.mamAll)+" → "+Math.round(fs.mamAll)+" ml/día) y menos teta ("+Math.round(fp.teta)+" → "+Math.round(fs.teta)+" min/día).");
+        else if(fp.mat>0&&fs.bDays){
+          const ch=(fs.mat-fp.mat)/fp.mat;
+          if(Math.abs(ch)>=.1)ins.push("En los días con mamadera, la leche materna "+(ch<0?"bajó":"subió")+" de "+Math.round(fp.mat)+" a "+Math.round(fs.mat)+" ml/día respecto de la semana anterior, y la fórmula pasó de "+Math.round(fp.form)+" a "+Math.round(fs.form)+" ml/día.");
+        }
       }
+      if(fs.teta>0)ins.push("Lo que toma de la teta no se puede medir en ml. La cuenta real la dan los pesos: si sigue en su percentil, está tomando lo que necesita, venga de la mamadera o de la teta.");
     }
     const ul=$("pIns");ul.innerHTML="";ul.hidden=!ins.length;
     ins.forEach(t=>{const li=document.createElement("li");li.textContent=t;ul.appendChild(li)});
@@ -902,7 +917,7 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
       if(q){const dd=a-ageOf(q.fecha),dg=p.g-q.g;l1+=" · "+sgn(dg)+" g"+(dd>0?" ("+sgn(Math.round(dg/dd))+" g/día)":"")}
       if(a>=0)l1+=" · p"+pctTxt(zOf(p.g,a));
       let l2="";
-      if(q){const f=feedStats(sorted,dStart(q.fecha),dStart(p.fecha));if(f)l2="Mamadera ≈ "+Math.round(f.mat+f.form)+" ml/día · teta "+Math.round(f.teta)+" min/día ("+f.days+(f.days===1?" día":" días")+" con registros)"}
+      if(q){const f=feedStats(sorted,dStart(q.fecha),dStart(p.fecha));if(f)l2=(f.bDays?"Mamadera ≈ "+Math.round(f.mat+f.form)+" ml/día":"Sin mamadera")+" · teta "+Math.round(f.teta)+" min/día ("+f.days+(f.days===1?" día":" días")+" con registros"+(f.tOnly?", "+f.tOnly+" solo teta":"")+")"}
       const b=document.createElement("button");b.type="button";b.className="row prow";
       b.innerHTML='<span class="hr"></span><span class="what"><span class="l1"></span><span class="l2"></span></span><span class="amt num"></span>';
       b.querySelector(".hr").textContent=fmtFecha(p.fecha);
