@@ -169,6 +169,45 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
 .chart .plbl{fill:var(--muted);font-family:var(--f-mono);font-size:10px}
 .legend .ln{display:inline-block;width:16px;height:0;border-top:2px solid var(--fg);margin-right:6px;vertical-align:3px}
 .legend .ln.d{border-top:2px dashed var(--c-accent)}
+/* Resumen para el pediatra: siempre en claro, pensado para compartir e imprimir */
+.btn-rep{width:100%;background:var(--accent-soft);color:var(--accent)}
+.report{position:fixed;inset:0;z-index:30;background:var(--bg);overflow:auto;-webkit-overflow-scrolling:touch}
+body.rep-open{overflow:hidden}
+.rbar{position:sticky;top:0;z-index:1;display:flex;gap:8px;align-items:center;background:var(--surface);border-bottom:1px solid var(--line);padding:calc(env(safe-area-inset-top,0px) + 10px) max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px))}
+.rbar .btn{padding:10px 14px;font-size:14px}
+.rwrap{padding:16px max(16px,env(safe-area-inset-left,0px)) calc(env(safe-area-inset-bottom,0px) + 40px)}
+.rdoc{
+  --bg:#f3f6f4; --surface:#ffffff; --fg:#1d2a26; --muted:#64736d; --line:#dfe6e2;
+  --materna:#e0894f; --materna-soft:#fbeadf; --formula:#4a7fc1; --formula-soft:#e3ecf8;
+  --teta:#c25b86; --teta-soft:#f7e4ec; --accent:#2f6e5c; --accent-soft:#dcebe5; --danger:#b3422f;
+  --c-materna:#d97a3c; --c-formula:#4a7fc1; --c-teta:#c25b86; --c-accent:#2f6e5c;
+  color-scheme:light;background:var(--surface);color:var(--fg);max-width:720px;margin:0 auto;padding:22px 18px;border-radius:18px;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:22px}
+.rdoc h1{font-size:24px}
+.rdoc h3{font-family:var(--f-display);font-size:17px;margin:0 0 10px}
+.rdoc section{display:flex;flex-direction:column;gap:10px}
+.rdoc .rsub{font-size:14px;color:var(--muted);margin-top:4px}
+.rdoc .stats{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+.rdoc .stat .v{font-size:21px}
+.rtbl{width:100%;border-collapse:collapse;font-size:13px}
+.rtbl th{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:600;text-align:right;padding:6px 4px}
+.rtbl td{text-align:right;padding:6px 4px;border-top:1px solid var(--line);font-family:var(--f-mono);font-size:12px;white-space:nowrap}
+.rtbl th:first-child,.rtbl td:first-child{text-align:left;font-family:var(--f-body)}
+.rscroll{overflow-x:auto}
+.rdoc textarea{font:inherit;font-size:15px;width:100%;min-height:96px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--bg);color:var(--fg);resize:vertical}
+.rprint{display:none;white-space:pre-wrap;font-size:14px}
+.rx{position:absolute;left:-10000px;top:0;width:640px}
+@page{margin:14mm}
+@media print{
+  body.rep-open{overflow:visible;background:#fff}
+  body.rep-open .wrap,body.rep-open .fab,body.rep-open .scrim,.rbar,.noprint{display:none!important}
+  .report{position:static;overflow:visible;background:#fff}
+  .rwrap{padding:0}
+  .rdoc{box-shadow:none;padding:0;max-width:none;border-radius:0}
+  .rdoc .rprint{display:block}
+  .rdoc textarea{display:none}
+  .rdoc section{break-inside:avoid}
+  .rtbl tr{break-inside:avoid}
+}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}}
 </style>
 
@@ -290,6 +329,7 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
       <div class="chart" id="pChart"><svg id="pSvg" role="img"></svg></div>
     </div>
     <ul class="ins" id="pIns" hidden></ul>
+    <button class="btn btn-rep" id="rOpen" type="button">Resumen para el pediatra</button>
     <div class="list" id="pList"></div>
     <div class="hint">Percentiles y proyección son orientativos (curvas OMS). Lo que vale es el control pediátrico.</div>
   </section>
@@ -330,6 +370,53 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
       <button type="submit" class="btn btn-primary" id="fSave">Guardar</button>
     </div>
   </form>
+</div>
+
+<div class="report" id="rep" hidden role="dialog" aria-modal="true" aria-labelledby="rTitle">
+  <div class="rbar">
+    <button class="btn btn-ghost" id="rClose" type="button">‹ Volver</button>
+    <span style="flex:1"></span>
+    <button class="btn btn-ghost" id="rShare" type="button">Compartir</button>
+    <button class="btn btn-primary" id="rPrint" type="button">PDF</button>
+  </div>
+  <div class="rwrap">
+    <article class="rdoc" id="rDoc">
+      <header style="display:block">
+        <h1 id="rTitle">Filippa · resumen para el control</h1>
+        <div class="rsub" id="rHead"></div>
+      </header>
+      <section>
+        <h3>Peso</h3>
+        <div class="stats" id="rPeso"></div>
+        <div class="legend">
+          <span><span class="ln"></span>Filippa</span>
+          <span><span class="ln d"></span>Proyección en su percentil</span>
+          <span><i style="background:var(--accent-soft)"></i>p15–p85</span>
+        </div>
+        <div class="chart" id="rChart"><svg id="rSvg" role="img"></svg><div class="rx" aria-hidden="true"><svg id="rSvgX"></svg></div></div>
+        <div class="rscroll"><table class="rtbl" id="rCtrl"></table></div>
+        <ul class="ins" id="rIns" hidden></ul>
+      </section>
+      <section>
+        <h3>Alimentación</h3>
+        <div class="seg noprint" role="group" aria-label="Período" id="rPer">
+          <button type="button" data-per="ctrl">Desde el control</button>
+          <button type="button" data-per="7">7 días</button>
+          <button type="button" data-per="14">14 días</button>
+        </div>
+        <div class="rsub" id="rPerTxt" style="margin-top:0"></div>
+        <div class="stats" id="rFeed"></div>
+        <div class="hint" id="rTetaNote"></div>
+        <div class="rscroll"><table class="rtbl" id="rDays"></table></div>
+      </section>
+      <section>
+        <h3><label for="rNotes">Para preguntar en el control</label></h3>
+        <textarea id="rNotes" placeholder="Dudas, cosas que notaste, medicación…"></textarea>
+        <div class="rprint" id="rNotesP"></div>
+      </section>
+      <div class="hint">Datos cargados en casa. Percentiles y proyección según curvas OMS para nenas; son orientativos.</div>
+    </article>
+  </div>
 </div>
 
 <div class="scrim" id="pScrim" hidden>
@@ -579,6 +666,7 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
     tick();
     renderWeek(sorted);
     renderPeso(sorted);
+    renderReport();
 
     // day
     const from=startOfDay(dayOffset), to=from+864e5;
@@ -641,19 +729,22 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
   function weekDays(sorted,off){
     const days=[];
     for(let i=6;i>=0;i--){
-      const back=off*7+i, from=startOfDay(back), to=startOfDay(back-1);
-      const d={from,mat:0,form:0,teta:0,count:0,gaps:[]};
-      sorted.forEach((x,k)=>{
-        if(x.t<from||x.t>=to)return;
-        d.count++;
-        if(x.tipo==="materna")d.mat+=+x.ml||0;
-        else if(x.tipo==="formula")d.form+=+x.ml||0;
-        else if(x.fin)d.teta+=Math.round((x.fin-x.t)/6e4);
-        if(k>0){const g=(x.t-sorted[k-1].t)/6e4;if(g>0&&g<=GAP_MAX)d.gaps.push(g)}
-      });
-      days.push(d);
+      const back=off*7+i;
+      days.push(dayRow(sorted,startOfDay(back),startOfDay(back-1)));
     }
     return days;
+  }
+  function dayRow(sorted,from,to){
+    const d={from,mat:0,form:0,teta:0,count:0,gaps:[]};
+    sorted.forEach((x,k)=>{
+      if(x.t<from||x.t>=to)return;
+      d.count++;
+      if(x.tipo==="materna")d.mat+=+x.ml||0;
+      else if(x.tipo==="formula")d.form+=+x.ml||0;
+      else if(x.fin)d.teta+=Math.round((x.fin-x.t)/6e4);
+      if(k>0){const g=(x.t-sorted[k-1].t)/6e4;if(g>0&&g<=GAP_MAX)d.gaps.push(g)}
+    });
+    return d;
   }
   function summary(days,m){
     const withData=days.filter(d=>d.count);
@@ -781,7 +872,7 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
   document.querySelectorAll("[data-metric]").forEach(b=>b.addEventListener("click",()=>{metric=b.dataset.metric;tipIdx=null;render()}));
   let rzT=null;
   const ro=new ResizeObserver(()=>{clearTimeout(rzT);rzT=setTimeout(render,100)});
-  ro.observe($("wChart"));ro.observe($("pChart"));
+  ro.observe($("wChart"));ro.observe($("pChart"));ro.observe($("rChart"));
 
   /* ---------- peso ---------- */
   const NAC="2026-10-20"; // fecha de nacimiento de Filippa
@@ -831,6 +922,33 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
     return {days,bDays,tOnly,mat:bDays?mat/bDays:0,form:bDays?form/bDays:0,mamAll:(mat+form)/days,teta:teta/days,count:count/days};
   }
 
+  // Conclusiones sobre el peso (bajada inicial, recuperación, cambio de curva)
+  function pesoIns(ps){
+    const ins=[], last=ps[ps.length-1], prev=ps[ps.length-2];
+    const zLast=last?zOf(last.g,ageOf(last.fecha)):null;
+    const birth=ps.find(p=>ageOf(p.fecha)===0);
+    if(birth){
+      const low=ps.filter(p=>{const a=ageOf(p.fecha);return a>0&&a<=10}).reduce((m,p)=>!m||p.g<m.g?p:m,null);
+      if(low&&low.g<birth.g)ins.push("Bajó "+dec((birth.g-low.g)/birth.g*100)+" % en los primeros días (día "+ageOf(low.fecha)+"). Lo esperable es hasta un 7–10 %.");
+      let rec=null;
+      for(let i=1;i<ps.length;i++){
+        const a=ps[i-1],b=ps[i];
+        if(a.g<birth.g&&b.g>=birth.g){const da=ageOf(a.fecha),db=ageOf(b.fecha);rec=da+(birth.g-a.g)/(b.g-a.g)*(db-da);break}
+      }
+      if(rec!=null){
+        const dd=Math.round(rec);
+        ins.push("Recuperó el peso de nacimiento cerca del día "+dd+" ("+fmtD(dStart(NAC)+dd*864e5+36e5)+"). Se espera entre los 10 y 14 días.");
+      }else if(low&&last.g<birth.g)ins.push("Le faltan "+(birth.g-last.g)+" g para volver al peso de nacimiento.");
+    }
+    if(prev&&zLast!=null&&ageOf(prev.fecha)>=7){
+      const zp=zOf(prev.g,ageOf(prev.fecha)), dz=zLast-zp, tr="p"+pctTxt(zp)+" → p"+pctTxt(zLast);
+      ins.push(Math.abs(dz)<.25?"Entre los dos últimos controles se mantuvo en su curva ("+tr+"). Es lo que se busca."
+        :dz>0?"Entre los dos últimos controles subió de curva ("+tr+")."
+        :"Entre los dos últimos controles bajó de curva ("+tr+"). Vale la pena comentarlo en el control.");
+    }
+    return ins;
+  }
+
   function renderPeso(sorted){
     const ps=sortPesos(), tAge=ageOf(todayStr());
     const last=ps[ps.length-1], prev=ps[ps.length-2];
@@ -860,27 +978,7 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
     drawPeso(ps,tAge,zLast,lAge);
 
     // conclusiones automáticas
-    const ins=[];
-    const birth=ps.find(p=>ageOf(p.fecha)===0);
-    if(birth){
-      const low=ps.filter(p=>{const a=ageOf(p.fecha);return a>0&&a<=10}).reduce((m,p)=>!m||p.g<m.g?p:m,null);
-      if(low&&low.g<birth.g)ins.push("Bajó "+dec((birth.g-low.g)/birth.g*100)+" % en los primeros días (día "+ageOf(low.fecha)+"). Lo esperable es hasta un 7–10 %.");
-      let rec=null;
-      for(let i=1;i<ps.length;i++){
-        const a=ps[i-1],b=ps[i];
-        if(a.g<birth.g&&b.g>=birth.g){const da=ageOf(a.fecha),db=ageOf(b.fecha);rec=da+(birth.g-a.g)/(b.g-a.g)*(db-da);break}
-      }
-      if(rec!=null){
-        const dd=Math.round(rec);
-        ins.push("Recuperó el peso de nacimiento cerca del día "+dd+" ("+fmtD(dStart(NAC)+dd*864e5+36e5)+"). Se espera entre los 10 y 14 días.");
-      }else if(low&&last.g<birth.g)ins.push("Le faltan "+(birth.g-last.g)+" g para volver al peso de nacimiento.");
-    }
-    if(prev&&zLast!=null&&ageOf(prev.fecha)>=7){
-      const zp=zOf(prev.g,ageOf(prev.fecha)), dz=zLast-zp, tr="p"+pctTxt(zp)+" → p"+pctTxt(zLast);
-      ins.push(Math.abs(dz)<.25?"Entre los dos últimos controles se mantuvo en su curva ("+tr+"). Es lo que se busca."
-        :dz>0?"Entre los dos últimos controles subió de curva ("+tr+")."
-        :"Entre los dos últimos controles bajó de curva ("+tr+"). Vale la pena comentarlo en el control.");
-    }
+    const ins=pesoIns(ps);
     const fs=feedStats(sorted,startOfDay(7),startOfDay(0));
     if(fs){
       const mam=fs.mat+fs.form, gNow=zLast!=null?gAt(zLast,tAge):null, dd=n=>n+(n===1?" día":" días");
@@ -929,9 +1027,8 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
     }
   }
 
-  function drawPeso(ps,tAge,zLast,lAge){
-    const svg=$("pSvg"), box=$("pChart");
-    const W=Math.max(260,box.clientWidth||320), H=220, pl=36, pr=30, pt=14, pb=30;
+  function drawPeso(ps,tAge,zLast,lAge,svg=$("pSvg"),W=Math.max(260,$("pChart").clientWidth||320)){
+    const H=220, pl=36, pr=30, pt=14, pb=30;
     const iw=W-pl-pr, ih=H-pt-pb;
     const span=Math.max(tAge,lAge??0)+21;
     const xmax=Math.min(MAXAGE,Math.max(42,Math.ceil(span/7)*7));
@@ -974,6 +1071,168 @@ header h1{font-size:28px;font-weight:700;letter-spacing:-.01em}
       const ti=svgEl("title",{});ti.textContent=fmtFecha(p.fecha)+" · "+kg(p.g)+" kg";c.appendChild(ti);svg.appendChild(c);
     });
   }
+
+  /* ---------- resumen para el pediatra ---------- */
+  const LS_N="tomas-notas-pediatra";
+  let repPer=null, repPng=null, repPngKey="", repTxt="";
+  try{$("rNotes").value=localStorage.getItem(LS_N)||""}catch(e){}
+  const fmtDY=ms=>new Date(ms).toLocaleDateString("es-AR",{day:"numeric",month:"short",year:"numeric"}).replace(".","");
+  function edadTxt(d){
+    if(d<14)return d+(d===1?" día":" días");
+    const w=Math.floor(d/7),r=d%7;
+    return w+" semanas"+(r?" y "+r+(r===1?" día":" días"):"")+" (día "+d+")";
+  }
+  function repRange(ps){
+    const last=ps[ps.length-1], t0=startOfDay(0);
+    const ctrl=last&&dStart(last.fecha)<t0?dStart(last.fecha):null;
+    let p=repPer;
+    if(p==="ctrl"&&ctrl==null)p=null;
+    if(!p)p=ctrl!=null&&t0-ctrl<=31*864e5?"ctrl":"7";
+    return {p,ctrl,from:p==="ctrl"?ctrl:startOfDay(+p),to:t0};
+  }
+  const stat=(l,v,c)=>'<div class="stat s-total"><div class="lbl">'+l+'</div><div class="v num">'+v+'</div>'+(c?'<div class="cmp">'+c+'</div>':'')+'</div>';
+  const unit=(v,u)=>v+"<span>"+u+"</span>";
+
+  function renderReport(){
+    if($("rep").hidden)return;
+    const ps=sortPesos(), sorted=[...tomas].sort((a,b)=>a.t-b.t), tAge=ageOf(todayStr());
+    const last=ps[ps.length-1], prev=ps[ps.length-2], birth=ps.find(p=>ageOf(p.fecha)===0);
+    const lAge=last?ageOf(last.fecha):null, zLast=last?zOf(last.g,lAge):null;
+    const T=[]; // versión en texto para compartir
+    $("rHead").textContent="Nació el "+fmtDY(dStart(NAC))+" · hoy tiene "+edadTxt(tAge)+" · resumen del "+fmtDY(Date.now());
+    T.push("Filippa · resumen para el control ("+fmtDY(Date.now())+")","Nació el "+fmtDY(dStart(NAC))+" · "+edadTxt(tAge),"");
+
+    // peso
+    let h="";
+    if(birth)h+=stat("Al nacer",unit(kg(birth.g),"kg"),"p"+pctTxt(zOf(birth.g,0)));
+    if(last&&last!==birth)h+=stat("Último peso",unit(kg(last.g),"kg"),fmtFecha(last.fecha)+" · día "+lAge+" · p"+pctTxt(zLast));
+    let tp="";
+    if(last)tp="Peso: "+(birth&&birth!==last?"al nacer "+kg(birth.g)+" kg (p"+pctTxt(zOf(birth.g,0))+"); ":"")+"último "+kg(last.g)+" kg el "+fmtFecha(last.fecha)+" (día "+lAge+", p"+pctTxt(zLast)+")";
+    if(prev&&ageOf(prev.fecha)<lAge){
+      const dd=lAge-ageOf(prev.fecha), dg=last.g-prev.g, r=Math.round(dg/dd);
+      h+=stat("Desde el control anterior",unit(sgn(r),"g/día"),sgn(dg)+" g en "+dd+(dd===1?" día":" días")+" · desde el "+fmtFecha(prev.fecha)+" · ref. 20–35");
+      h+=stat("Percentil",unit("p"+pctTxt(zLast),""),"antes p"+pctTxt(zOf(prev.g,ageOf(prev.fecha))));
+      tp+=". "+sgn(dg)+" g desde el "+fmtFecha(prev.fecha)+" ("+sgn(r)+" g/día)";
+    }
+    $("rPeso").innerHTML=h||'<div class="empty" style="grid-column:1/-1">Todavía no hay pesos cargados.</div>';
+    if(tp)T.push(tp+".");
+    $("rChart").hidden=!ps.length;
+    if(ps.length){
+      drawPeso(ps,tAge,zLast,lAge,$("rSvg"),Math.max(260,$("rChart").clientWidth||600));
+      drawPeso(ps,tAge,zLast,lAge,$("rSvgX"),640);
+    }
+    let rows="";
+    if(ps.length){
+      rows='<tr><th>Fecha</th><th>Día</th><th>Peso</th><th>Cambio</th><th>g/día</th><th>Percentil</th></tr>';
+      for(let i=ps.length-1;i>=0;i--){
+        const p=ps[i],q=ps[i-1],a=ageOf(p.fecha);
+        let ch="—",gd="—";
+        if(q){const dd=a-ageOf(q.fecha),dg=p.g-q.g;ch=sgn(dg)+" g";if(dd>0)gd=sgn(Math.round(dg/dd))}
+        rows+="<tr><td>"+fmtFecha(p.fecha)+"</td><td>"+a+"</td><td>"+kg(p.g)+"</td><td>"+ch+"</td><td>"+gd+"</td><td>p"+pctTxt(zOf(p.g,a))+"</td></tr>";
+      }
+    }
+    $("rCtrl").innerHTML=rows;
+    const ins=pesoIns(ps), ul=$("rIns");ul.innerHTML="";ul.hidden=!ins.length;
+    ins.forEach(t=>{const li=document.createElement("li");li.textContent=t;ul.appendChild(li);T.push("· "+t)});
+
+    // alimentación
+    const R=repRange(ps);
+    document.querySelectorAll("[data-per]").forEach(b=>{b.setAttribute("aria-pressed",String(b.dataset.per===R.p));b.disabled=b.dataset.per==="ctrl"&&R.ctrl==null});
+    const days=[];for(let t=R.from;t<R.to;){const nx=new Date(t);nx.setDate(nx.getDate()+1);days.push(dayRow(sorted,t,nx.getTime()));t=nx.getTime()}
+    const nDays=days.length, fs=feedStats(sorted,R.from,R.to), gaps=days.flatMap(d=>d.gaps);
+    const perLbl=(R.p==="ctrl"?"Desde el último control: ":"Últimos "+nDays+" días: ")+fmtD(R.from)+" al "+fmtD(R.to-1)+" ("+(fs?fs.days:0)+" de "+nDays+(nDays===1?" día":" días")+" con registros; hoy no se cuenta porque está en curso)";
+    $("rPerTxt").textContent=perLbl;
+    T.push("","Alimentación — "+perLbl.charAt(0).toLowerCase()+perLbl.slice(1));
+    let fh="";
+    if(fs){
+      const mam=fs.mat+fs.form, gNow=zLast!=null?gAt(zLast,tAge):null;
+      if(fs.bDays){
+        fh+=stat("Mamadera",unit(Math.round(mam),"ml/día"),(fs.bDays<fs.days?"en los "+fs.bDays+" días que tomó":"promedio por día")+(gNow?" · ≈ "+Math.round(mam/(gNow/1000))+" ml/kg":""));
+        fh+=stat("Leche materna / fórmula",unit(Math.round(fs.mat/mam*100)+" %",""),"materna "+Math.round(fs.mat)+" ml · fórmula "+Math.round(fs.form)+" ml por día");
+        T.push("· Mamadera: "+Math.round(mam)+" ml/día"+(fs.bDays<fs.days?" en los "+fs.bDays+" días que tomó":"")+(gNow?" (≈ "+Math.round(mam/(gNow/1000))+" ml/kg)":"")+", "+Math.round(fs.mat/mam*100)+" % leche materna ("+Math.round(fs.mat)+" ml materna, "+Math.round(fs.form)+" ml fórmula)");
+      }else{fh+=stat("Mamadera",unit("—",""),"no tomó mamadera");T.push("· Sin mamadera")}
+      fh+=stat("Teta",hm(fs.teta).replace(/ (min)$/,"<span>$1</span>").replace(/ h /,"<span>h</span> ")+"<span>/día</span>",fs.tOnly?fs.tOnly+(fs.tOnly===1?" día":" días")+" de solo teta":"");
+      fh+=stat("Tomas",unit(dec(fs.count),"por día"),"");
+      T.push("· Teta: "+hm(fs.teta)+" por día"+(fs.tOnly?" ("+fs.tOnly+" días de solo teta)":""),"· Tomas: "+dec(fs.count)+" por día");
+      if(gaps.length){
+        const avg=gaps.reduce((a,b)=>a+b,0)/gaps.length, mx=Math.max(...gaps);
+        fh+=stat("Entre tomas",hm(avg).replace(/ (min)$/,"<span>$1</span>").replace(/ h /,"<span>h</span> "),"promedio · el más largo "+hm(mx));
+        T.push("· Entre tomas: "+hm(avg)+" en promedio, el más largo "+hm(mx));
+      }
+    }
+    $("rFeed").innerHTML=fh||'<div class="empty" style="grid-column:1/-1">No hay tomas cargadas en este período.</div>';
+    $("rTetaNote").textContent=fs&&fs.teta>0?"La teta se registra en minutos: no se puede pasar a ml. Lo que toma en total se ve en la curva de peso.":"";
+    $("rTetaNote").hidden=!$("rTetaNote").textContent;
+    let dr="";
+    const shown=days.filter(d=>d.count).reverse().slice(0,31);
+    if(shown.length){
+      dr='<tr><th>Día</th><th>Materna</th><th>Fórmula</th><th>Teta</th><th>Tomas</th><th>Interv. máx.</th></tr>';
+      shown.forEach(d=>{dr+="<tr><td>"+dayName(d.from,true)+" "+new Date(d.from).getDate()+"</td><td>"+(d.mat?d.mat+" ml":"—")+"</td><td>"+(d.form?d.form+" ml":"—")+"</td><td>"+(d.teta?hm(d.teta):"—")+"</td><td>"+d.count+"</td><td>"+(d.gaps.length?hm(Math.max(...d.gaps)):"—")+"</td></tr>"});
+    }
+    $("rDays").innerHTML=dr;
+
+    const notes=$("rNotes").value.trim();
+    $("rNotesP").textContent=notes||"—";
+    if(notes)T.push("","Para preguntar:",notes);
+    repTxt=T.join("\n");
+    makePng(ps.length?JSON.stringify([ps,tAge]):"");
+  }
+
+  // Imagen de la curva para compartir (se arma antes, así el botón de compartir responde al instante)
+  const SVG_PROPS=["fill","stroke","stroke-width","stroke-dasharray","stroke-linejoin","opacity","font-family","font-size","font-weight"];
+  function makePng(key){
+    if(key===repPngKey)return;
+    repPngKey=key;repPng=null;if(!key)return;
+    const src=$("rSvgX"), cl=src.cloneNode(true);
+    const a=src.querySelectorAll("*"), b=cl.querySelectorAll("*");
+    a.forEach((el,i)=>{const cs=getComputedStyle(el);b[i].setAttribute("style",SVG_PROPS.map(p=>p+":"+cs.getPropertyValue(p)).join(";"));b[i].removeAttribute("class")});
+    const vb=src.getAttribute("viewBox").split(" ").map(Number), w=vb[2], hgt=vb[3];
+    cl.setAttribute("xmlns","http://www.w3.org/2000/svg");cl.setAttribute("width",w);cl.setAttribute("height",hgt);
+    const url=URL.createObjectURL(new Blob([new XMLSerializer().serializeToString(cl)],{type:"image/svg+xml"}));
+    const img=new Image();
+    img.onload=()=>{
+      const sc=2, top=58, pad=16, cv=document.createElement("canvas");
+      cv.width=(w+pad*2)*sc;cv.height=(hgt+top+pad)*sc;
+      const c=cv.getContext("2d");c.scale(sc,sc);
+      c.fillStyle="#fff";c.fillRect(0,0,w+pad*2,hgt+top+pad);
+      c.fillStyle="#1d2a26";c.font="700 17px Figtree, system-ui, sans-serif";c.fillText("Filippa · peso por días de vida",pad,26);
+      c.fillStyle="#64736d";c.font="12px Figtree, system-ui, sans-serif";c.fillText("Curvas OMS nenas · franja oscura p15–p85, clara p3–p97 · línea punteada: proyección en su percentil",pad,44);
+      c.drawImage(img,pad,top);URL.revokeObjectURL(url);
+      cv.toBlob(bl=>{if(bl&&repPngKey===key)repPng=new File([bl],"curva-peso-filippa.png",{type:"image/png"})},"image/png");
+    };
+    img.onerror=()=>URL.revokeObjectURL(url);
+    img.src=url;
+  }
+
+  function openReport(){
+    $("rep").hidden=false;document.body.classList.add("rep-open");$("rep").scrollTop=0;
+    renderReport();$("rClose").focus();
+  }
+  function closeReport(){$("rep").hidden=true;document.body.classList.remove("rep-open");$("rOpen").focus()}
+  $("rOpen").addEventListener("click",openReport);
+  $("rClose").addEventListener("click",closeReport);
+  document.addEventListener("keydown",e=>{if(e.key==="Escape"&&!$("rep").hidden)closeReport()});
+  document.querySelectorAll("[data-per]").forEach(b=>b.addEventListener("click",()=>{repPer=b.dataset.per;renderReport()}));
+  $("rNotes").addEventListener("input",()=>{
+    try{localStorage.setItem(LS_N,$("rNotes").value)}catch(e){}
+    const n=$("rNotes").value.trim();$("rNotesP").textContent=n||"—";
+    repTxt=repTxt.replace(/\n\nPara preguntar:\n[\s\S]*$/,"")+(n?"\n\nPara preguntar:\n"+n:"");
+  });
+  $("rPrint").addEventListener("click",()=>window.print());
+  function flash(t){const b=$("rShare"),o="Compartir";b.textContent=t;setTimeout(()=>b.textContent=o,2200)}
+  function shareFallback(){
+    const done=()=>{
+      if(repPng){const a=document.createElement("a");a.href=URL.createObjectURL(repPng);a.download=repPng.name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+      flash(repPng?"Texto copiado · curva descargada":"Texto copiado");
+    };
+    if(navigator.clipboard)navigator.clipboard.writeText(repTxt).then(done,()=>flash("No se pudo copiar"));else flash("No se pudo compartir");
+  }
+  $("rShare").addEventListener("click",()=>{
+    if(!navigator.share)return shareFallback();
+    const data={title:"Resumen de Filippa",text:repTxt};
+    if(repPng&&navigator.canShare&&navigator.canShare({files:[repPng]}))data.files=[repPng];
+    navigator.share(data).catch(e=>{if(e&&e.name!=="AbortError")shareFallback()});
+  });
 
   /* formulario de peso */
   let pEditing=null,pConfirm=false;
